@@ -1,11 +1,40 @@
-    name: GitHub Classroom Workflow
-
-    on: [push]
-
-    jobs:
-      build:
-        name: Autograding
-        runs-on: ubuntu-latest
-        steps:
-          - uses: actions/checkout@v2
-          - uses: education/autograding@v1
+name: Autograding Tests
+'on':
+- workflow_dispatch
+- repository_dispatch
+permissions:
+  checks: write
+  actions: read
+  contents: read
+jobs:
+  run-autograding-tests:
+    runs-on: ubuntu-latest
+    if: github.actor != 'github-classroom[bot]'
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    - name: Build
+      id: build
+      uses: classroom-resources/autograding-command-grader@v1
+      with:
+        test-name: Build
+        setup-command: ''
+        command: .scripts/dr.sh "mkdir build; cd build; cmake -GNinja ..; ninja;"
+        timeout: 10
+        max-score: 5
+    - name: Test
+      id: test
+      uses: classroom-resources/autograding-command-grader@v1
+      with:
+        test-name: Test
+        setup-command: ''
+        command: .scripts/dr.sh "cd build; ctest -N; ctest --output-on-failure"
+        timeout: 10
+        max-score: 15
+    - name: Autograding Reporter
+      uses: classroom-resources/autograding-grading-reporter@v1
+      env:
+        BUILD_RESULTS: "${{steps.build.outputs.result}}"
+        TEST_RESULTS: "${{steps.test.outputs.result}}"
+      with:
+        runners: build,test
